@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intervu.AI Lite</title>
+<meta name="description" content="Practise mock interviews in your browser: questions read aloud, speak or type your answer, get rule-based scores and tips, download a PDF report.">
+<style>
+  :root {
+    --bg: #f5f7fb; --surface: #ffffff; --text: #141824; --muted: #5a6275; --line: #dde2ec;
+    --accent: #4f46e5; --accent-soft: #eceafe; --good: #15803d; --mid: #b45309; --low: #b91c1c; --rec: #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1017; --surface: #171a24; --text: #e9ebf2; --muted: #9aa1b3; --line: #2a2f3d;
+      --accent: #8b85ff; --accent-soft: #23214a; --good: #4ade80; --mid: #fbbf24; --low: #f87171; --rec: #f87171;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1 { font-size: clamp(1.9rem, 5vw, 2.5rem); margin: 0 0 8px; line-height: 1.15; }
+  h2 { font-size: 1.25rem; margin: 0 0 12px; }
+  p { color: var(--muted); margin: 0 0 12px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-top: 20px; }
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); padding: 10px 16px; }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.rec { background: var(--rec); border-color: var(--rec); color: #fff; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .roles button { padding: 16px; font-weight: 600; text-align: left; }
+  .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: .9rem; }
+  .question { font-size: 1.25rem; font-weight: 600; margin: 8px 0 16px; color: var(--text); }
+  textarea { width: 100%; min-height: 160px; font: inherit; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); resize: vertical; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+  .row .spacer { flex: 1; }
+  .note { font-size: .88rem; }
+  .status { font-size: .9rem; color: var(--muted); }
+  .big { font-size: 3rem; font-weight: 800; line-height: 1; }
+  .bars { display: grid; gap: 10px; }
+  .bar { display: grid; grid-template-columns: 120px 1fr 44px; gap: 10px; align-items: center; font-size: .92rem; }
+  .bar .track { background: var(--accent-soft); border-radius: 6px; height: 16px; overflow: hidden; }
+  .bar .fill { height: 100%; border-radius: 6px; }
+  .bar b { text-align: right; }
+  .answer { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+  .answer h3 { font-size: 1rem; margin: 0 0 4px; }
+  .answer ul { margin: 6px 0 0; padding-left: 20px; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chips span { font-size: .8rem; background: var(--accent-soft); padding: 1px 8px; border-radius: 99px; }
+  [hidden] { display: none !important; }
+  footer { margin-top: 40px; font-size: .85rem; color: var(--muted); }
+  @media (max-width: 520px) { .bar { grid-template-columns: 90px 1fr 40px; } }
+</style>
+</head>
+<body>
+<main>
+  <section id="home">
+    <h1>Intervu.AI Lite</h1>
+    <p>Practise a 5-question mock interview. Each question is read aloud; answer by speaking (or typing), then get scores out of 100 with tips and a PDF report. Everything runs in your browser, with no account and no paid API.</p>
+    <div class="card">
+      <h2>Pick a role</h2>
+      <div class="roles" id="roles"></div>
+    </div>
+    <div class="card">
+      <h2>How you are scored</h2>
+      <p>Simple rules, not AI: speaking pace (120–160 words per minute is ideal), filler words (um, uh, like, you know…), answer length (60–180 words), and key ideas for the question. Pace is only scored for spoken answers.</p>
+    </div>
+  </section>
+
+  <section id="interview" hidden>
+    <div class="meta"><span id="role-label"></span><span id="progress"></span></div>
+    <div class="card">
+      <div class="question" id="question"></div>
+      <div class="row">
+        <button id="speak">🔊 Read again</button>
+        <button id="record">🎙 Start answering</button>
+        <span class="status" id="status" aria-live="polite"></span>
+      </div>
+      <p class="note" id="speech-note" hidden>Speech input is not available in this browser (it works in Chrome and Edge). Type your answer below.</p>
+      <label for="answer" class="status" style="display:block;margin-top:12px">Your answer (you can edit or type it)</label>
+      <textarea id="answer" placeholder="Your spoken answer appears here. You can also type."></textarea>
+      <div class="row">
+        <button id="quit">Quit</button>
+        <span class="spacer"></span>
+        <button class="primary" id="next">Next question</button>
+      </div>
+    </div>
+    <p class="note" style="margin-top:12px">In Chrome, speech recognition is handled by the browser's own speech service.</p>
+  </section>
+
+  <section id="results" hidden>
+    <h1>Your results</h1>
+    <p id="results-role"></p>
+    <div class="card">
+      <div class="big" id="overall"></div>
+      <p style="margin-top:6px">Overall score out of 100</p>
+      <h2 style="margin-top:20px">By skill</h2>
+      <div class="bars" id="category-bars"></div>
+      <h2 style="margin-top:24px">By question</h2>
+      <div class="bars" id="question-bars"></div>
+    </div>
+    <div class="card" id="answers"></div>
+    <div class="row">
+      <button class="primary" id="pdf">⬇ Download PDF report</button>
+      <button id="again">Try another interview</button>
+    </div>
+  </section>
+
+  <footer>Our CodeSlayer team designed Intervu.AI. Afterwards Surya Pratap Singh built this browser-only version.</footer>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
