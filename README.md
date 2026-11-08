@@ -24,6 +24,8 @@ Any static server works, for example:
 npx serve .
 ```
 
+![CI](https://github.com/surypratapsingh/intervu-ai-lite/actions/workflows/ci.yml/badge.svg)
+
 ## Tests
 The scoring functions have 13 tests (Node 18+, no dependencies):
 

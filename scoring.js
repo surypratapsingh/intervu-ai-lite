@@ -7,9 +7,12 @@ export const IDEAL_WPM = [120, 160];
 export const IDEAL_WORDS = [60, 180];
 
 const clamp = (n) => Math.max(0, Math.min(100, Math.round(n)));
-const normalise = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim();
+// Match words: a Unicode letter run (with combining marks) possibly joined by a dash or apostrophe.
+// This counts Hindi, French, etc. words instead of only ASCII.
+const WORD_RE = /[\p{L}\p{M}\p{N}]+(?:['\-/][\p{L}\p{M}\p{N}]+)*/gu;
+const normalise = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9'\p{L}\p{M}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim();
 
-export const countWords = (text) => (normalise(text).match(/[a-z0-9']+/g) || []).length;
+export const countWords = (text) => (normalise(text).match(WORD_RE) || []).length;
 
 export function countFillers(text) {
   const t = normalise(text);
