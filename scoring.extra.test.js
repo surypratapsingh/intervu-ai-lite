@@ -175,3 +175,20 @@ describe('scoreSession', () => {
     assert.deepEqual(scoreSession([{ overall: null, scores: { pace: 50 } }]).categories, { pace: 50, fillers: null, length: null, keywords: null });
   });
 });
+
+describe('empty and very long input (R9 item 14)', () => {
+  it('scoreSession with no answers gives 0 overall and no category scores', () => {
+    const s = scoreSession([]);
+    assert.equal(s.overall, 0);
+    assert.deepEqual(Object.values(s.categories), [null, null, null, null]);
+  });
+
+  it('scoreAnswer on a 200,000-word answer gives finite scores in 0-100', () => {
+    const r = scoreAnswer({ text: 'like I think so '.repeat(50000), seconds: 600, keywords: ['dns', 'tcp', 'http'] });
+    assert.equal(r.wordCount, 200000);
+    for (const v of [r.overall, ...Object.values(r.scores)]) {
+      assert.ok(Number.isFinite(v) && v >= 0 && v <= 100, `score ${v} out of range`);
+    }
+    assert.ok(r.tips.length > 0);
+  });
+});
