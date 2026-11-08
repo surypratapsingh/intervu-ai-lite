@@ -2,9 +2,29 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   countWords, countFillers, wordsPerMinute, paceScore, fillerScore, lengthScore,
-  keywordScore, weightedOverall, scoreAnswer, scoreSession,
+  keywordScore, weightedOverall, scoreAnswer, scoreSession, tipsFor,
 } from './scoring.js';
 import { ROLES, pickQuestions } from './questions.js';
+
+test('tipsFor: empty answer gets one tip', () => {
+  assert.deepEqual(tipsFor({ wordCount: 0, fillers: 0, wpm: null, scores: { fillers: 100, keywords: 100 }, missing: [] }),
+    ['No answer recorded. Even a short answer scores better than none.']);
+});
+
+test('tipsFor: slow pace, fillers and missing key ideas each add a tip', () => {
+  const tips = tipsFor({ wordCount: 100, fillers: 1, wpm: 90, scores: { fillers: 50, keywords: 33 }, missing: ['dns', 'tcp', 'http', 'tls'] });
+  assert.equal(tips.length, 3);
+  assert.match(tips[0], /90 words per minute, a little slow/);
+  assert.match(tips[1], /^You used 1 filler word \(/);
+  assert.equal(tips[2], 'Mention key ideas such as dns, tcp, http.');
+});
+
+test('tipsFor: short and long answers, and a strong answer', () => {
+  const ok = { fillers: 100, keywords: 100 };
+  assert.match(tipsFor({ wordCount: 10, fillers: 0, wpm: 140, scores: ok, missing: [] })[0], /^Short answer \(10 words\)/);
+  assert.match(tipsFor({ wordCount: 200, fillers: 0, wpm: 140, scores: ok, missing: [] })[0], /^Long answer \(200 words\)/);
+  assert.deepEqual(tipsFor({ wordCount: 100, fillers: 0, wpm: 140, scores: ok, missing: [] }), ['Strong answer. Keep this structure.']);
+});
 
 test('countWords ignores punctuation and extra spaces', () => {
   assert.equal(countWords('  Hello,   world! It\'s fine. '), 4);
