@@ -192,3 +192,53 @@ describe('empty and very long input (R9 item 14)', () => {
     assert.ok(r.tips.length > 0);
   });
 });
+
+// FB-CI R8 item 2: scoring edge cases — empty, very long and filler-only answers.
+describe('scoring edge cases', () => {
+  it('an empty answer scores 0, has no length credit and gets the no-answer tip', () => {
+    const r = scoreAnswer({ text: '', seconds: 30, keywords: ['team', 'result', 'impact'] });
+    assert.equal(r.wordCount, 0);
+    assert.equal(r.wpm, 0); // 0 words in 30 s is 0 wpm, not "no pace"
+    assert.deepEqual(r.scores, { pace: 0, fillers: 0, length: 0, keywords: 0 });
+    assert.equal(r.overall, 0);
+    assert.deepEqual(r.tips, ['No answer recorded. Even a short answer scores better than none.']);
+  });
+
+  it('a whitespace-only answer is treated as empty and never throws', () => {
+    for (const text of ['   ', '\n\t  \n', null, undefined]) {
+      const r = scoreAnswer({ text, keywords: ['x'] });
+      assert.equal(r.wordCount, 0, String(text));
+      assert.equal(r.overall, 0, String(text));
+      assert.equal(r.tips.length, 1, String(text));
+    }
+  });
+
+  it('a very long answer stays in 0-100, keeps the 40-point length floor and tips are finite', () => {
+    const r = scoreAnswer({ text: 'delivered '.repeat(20000), seconds: 600, keywords: ['delivered'] });
+    assert.equal(r.wordCount, 20000);
+    assert.equal(r.scores.length, 40);
+    assert.equal(r.scores.keywords, 33); // one keyword matched out of the default target of 3
+    for (const [name, v] of Object.entries(r.scores)) {
+      assert.ok(v === null || (Number.isFinite(v) && v >= 0 && v <= 100), `${name} out of range: ${v}`);
+    }
+    assert.ok(Number.isInteger(r.overall) && r.overall >= 0 && r.overall <= 100);
+    assert.ok(r.tips.some((t) => t.startsWith('Long answer (20000 words)')));
+  });
+
+  it('a single 500,000-character word is one word, not a crash', () => {
+    const r = scoreAnswer({ text: 'x'.repeat(500000), seconds: 60, keywords: ['x'] });
+    assert.equal(r.wordCount, 1);
+    assert.equal(r.scores.length, 2); // 1/60 of the 60-word ideal, rounded down
+    assert.ok(Number.isFinite(r.overall) && r.overall >= 0 && r.overall <= 100);
+  });
+
+  it('a filler-only answer scores near zero and says why', () => {
+    const r = scoreAnswer({ text: 'um uh like you know basically', seconds: 20, keywords: ['project'] });
+    assert.equal(r.wordCount, 6);
+    assert.equal(r.fillers, 5);
+    assert.equal(r.scores.fillers, 0);
+    assert.ok(r.overall <= 5, `filler-only overall ${r.overall} should be near zero`);
+    assert.ok(r.tips.some((t) => /filler word/.test(t)));
+    assert.ok(r.tips.some((t) => /^Short answer \(6 words\)/.test(t)));
+  });
+});
